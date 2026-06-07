@@ -13,6 +13,7 @@
 
     // Temp variables for the Quick Add inputs
     let quickDueDateSelected = null;
+    let quickTimeSelected = null;
     let quickRepeatSettingsSelected = {
         type: "NONE",
         limitOccurrences: 5,
@@ -403,8 +404,19 @@
                 const deadlineDate = new Date(task.dueDate);
                 const isPastDue = deadlineDate < new Date().setHours(0, 0, 0, 0) && !task.isCompleted;
                 
+                const hasTime = deadlineDate.getHours() !== 12 || deadlineDate.getMinutes() !== 0;
+                let formattedDate = deadlineDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'});
+                if (hasTime) {
+                    const formattedTime = deadlineDate.toLocaleTimeString(undefined, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    formattedDate += ` at ${formattedTime}`;
+                }
+                
                 badge.className = `tag-badge deadline ${isPastDue ? 'past-due' : ''}`;
-                badge.innerHTML = `<span class="material-symbols-outlined">calendar_today</span> ${deadlineDate.toLocaleDateString(undefined, {month: 'short', day: 'numeric'})}`;
+                badge.innerHTML = `<span class="material-symbols-outlined">calendar_today</span> ${formattedDate}`;
                 indicatorsRow.appendChild(badge);
             }
 
@@ -603,7 +615,24 @@
         // Form Fields assignments
         document.getElementById("edit-title").value = task.title;
         document.getElementById("edit-details").value = task.details || "";
-        document.getElementById("edit-due-date").value = task.dueDate ? new Date(task.dueDate).toISOString().substring(0, 10) : "";
+        
+        if (task.dueDate) {
+            const d = new Date(task.dueDate);
+            const localDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            document.getElementById("edit-due-date").value = localDateStr;
+            
+            const hasTime = d.getHours() !== 12 || d.getMinutes() !== 0;
+            if (hasTime) {
+                const localTimeStr = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                document.getElementById("edit-due-time").value = localTimeStr;
+            } else {
+                document.getElementById("edit-due-time").value = "";
+            }
+        } else {
+            document.getElementById("edit-due-date").value = "";
+            document.getElementById("edit-due-time").value = "";
+        }
+        
         document.getElementById("edit-is-starred").checked = task.isStarred;
 
         // Draw selection options list dropdown
@@ -651,7 +680,13 @@
         task.details = document.getElementById("edit-details").value.trim() || null;
         
         const rawDue = document.getElementById("edit-due-date").value;
-        task.dueDate = rawDue ? new Date(rawDue + "T12:00:00").getTime() : null;
+        const rawTime = document.getElementById("edit-due-time").value;
+        if (rawDue) {
+            const timeString = rawTime ? `${rawTime}:00` : "12:00:00";
+            task.dueDate = new Date(`${rawDue}T${timeString}`).getTime();
+        } else {
+            task.dueDate = null;
+        }
         
         task.isStarred = document.getElementById("edit-is-starred").checked;
         task.listId = document.getElementById("edit-list-id").value;
@@ -995,6 +1030,14 @@
             quickInput.value = "";
             quickSubmit.disabled = true;
             quickDueDateSelected = null;
+            quickTimeSelected = null;
+            if (document.getElementById("quick-time-picker")) {
+                document.getElementById("quick-time-picker").value = "";
+            }
+            document.querySelectorAll(".time-chip").forEach(c => c.classList.remove("active"));
+            if (document.getElementById("quick-time-options-container")) {
+                document.getElementById("quick-time-options-container").style.display = "none";
+            }
             document.getElementById("quick-date-lbl").style.display = "none";
             document.getElementById("btn-quick-date").classList.remove("active");
             document.getElementById("quick-star-icon").textContent = "star_border";
@@ -1025,14 +1068,99 @@
         // Quick Date Trigger logic dialog overlay display
         const dateDlg = document.getElementById("quick-date-overlay");
         const datePicker = document.getElementById("quick-date-picker");
-        
-        document.getElementById("btn-quick-date").onclick = () => {
-            datePicker.value = quickDueDateSelected ? new Date(quickDueDateSelected).toISOString().substring(0, 10) : "";
-            dateDlg.style.display = "flex";
+        const timeOptionsContainer = document.getElementById("quick-time-options-container");
+        const quickTimePickerInput = document.getElementById("quick-time-picker");
+
+        const updateQuickTimeUI = () => {
+            document.querySelectorAll(".time-chip").forEach(c => {
+                if (quickTimeSelected && c.dataset.time === quickTimeSelected) {
+                    c.classList.add("active");
+                } else {
+                    c.classList.remove("active");
+                }
+            });
+            if (quickTimePickerInput) {
+                quickTimePickerInput.value = quickTimeSelected || "";
+            }
         };
+
+        document.getElementById("btn-quick-date").onclick = () => {
+            let initialDateStr = "";
+            if (quickDueDateSelected) {
+                const d = new Date(quickDueDateSelected);
+                initialDateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                
+                const hasTime = d.getHours() !== 12 || d.getMinutes() !== 0;
+                if (hasTime) {
+                    quickTimeSelected = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+                } else {
+                    quickTimeSelected = null;
+                }
+            } else {
+                quickTimeSelected = null;
+            }
+            
+            datePicker.value = initialDateStr;
+            updateQuickTimeUI();
+
+            if (initialDateStr) {
+                timeOptionsContainer.style.display = "block";
+            } else {
+                timeOptionsContainer.style.display = "none";
+            }
+
+            dateDlg.style.display = "flex";
+
+            // Open the calendar popup immediately, programmatically
+            setTimeout(() => {
+                if (typeof datePicker.showPicker === 'function') {
+                    try {
+                        datePicker.showPicker();
+                    } catch (err) {
+                        console.log("Programmatic showPicker failed or not supported context.", err);
+                    }
+                }
+            }, 100);
+        };
+
+        // Display time options after date is selected
+        datePicker.oninput = () => {
+            if (datePicker.value) {
+                timeOptionsContainer.style.display = "block";
+            } else {
+                timeOptionsContainer.style.display = "none";
+            }
+        };
+
+        // Time chip buttons binding
+        document.querySelectorAll(".time-chip").forEach(chip => {
+            chip.onclick = () => {
+                document.querySelectorAll(".time-chip").forEach(c => c.classList.remove("active"));
+                chip.classList.add("active");
+                quickTimeSelected = chip.dataset.time;
+                if (quickTimePickerInput) {
+                    quickTimePickerInput.value = quickTimeSelected;
+                }
+            };
+        });
+
+        // Custom time input binding
+        if (quickTimePickerInput) {
+            quickTimePickerInput.oninput = () => {
+                quickTimeSelected = quickTimePickerInput.value;
+                document.querySelectorAll(".time-chip").forEach(c => {
+                    if (c.dataset.time === quickTimeSelected) {
+                        c.classList.add("active");
+                    } else {
+                        c.classList.remove("active");
+                    }
+                });
+            };
+        }
 
         document.getElementById("btn-quick-date-clear").onclick = () => {
             quickDueDateSelected = null;
+            quickTimeSelected = null;
             document.getElementById("quick-date-lbl").style.display = "none";
             document.getElementById("btn-quick-date").classList.remove("active");
             dateDlg.style.display = "none";
@@ -1041,13 +1169,25 @@
         document.getElementById("btn-quick-date-set").onclick = () => {
             const raw = datePicker.value;
             if (raw) {
-                quickDueDateSelected = new Date(raw + "T12:00:00").getTime();
-                const formatted = new Date(quickDueDateSelected).toLocaleDateString(undefined, {month: "short", day: "numeric"});
+                const timeStr = quickTimeSelected ? `${quickTimeSelected}:00` : "12:00:00";
+                const parsedDate = new Date(`${raw}T${timeStr}`);
+                quickDueDateSelected = parsedDate.getTime();
+                
+                let formatted = parsedDate.toLocaleDateString(undefined, {month: "short", day: "numeric"});
+                if (quickTimeSelected) {
+                    const formattedTime = parsedDate.toLocaleTimeString(undefined, {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true
+                    });
+                    formatted += ` at ${formattedTime}`;
+                }
                 document.getElementById("quick-date-lbl").textContent = formatted;
                 document.getElementById("quick-date-lbl").style.display = "inline";
                 document.getElementById("btn-quick-date").classList.add("active");
             } else {
                 quickDueDateSelected = null;
+                quickTimeSelected = null;
                 document.getElementById("quick-date-lbl").style.display = "none";
                 document.getElementById("btn-quick-date").classList.remove("active");
             }
