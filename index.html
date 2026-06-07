@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TaskThread Cloud Web</title>
+    <!-- Beautiful Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=Roboto:wght@300;400;500;700&family=JetBrains+Mono&display=swap" rel="stylesheet">
+    <!-- Google Material Symbols Outlined -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="slate-dark">
+    <div id="app">
+        <!-- Sidebar Navigation Drawer -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <span class="material-symbols-outlined logo-icon">task_alt</span>
+                <h2>TaskThread</h2>
+            </div>
+
+            <!-- Task Lists Navigation -->
+            <div class="sidebar-section">
+                <div class="section-title-row">
+                    <h3>YOUR TASK LISTS</h3>
+                    <button id="btn-new-list" class="btn-icon" title="Create list">
+                        <span class="material-symbols-outlined">add_box</span>
+                    </button>
+                </div>
+                <ul id="list-container" class="nav-list">
+                    <!-- Dynamic List Names appear here -->
+                </ul>
+            </div>
+
+            <!-- ThreadSync Cloud Settings Container -->
+            <div class="sidebar-section cloud-section">
+                <h3>THREADSYNC CLOUD</h3>
+                <div id="cloud-card" class="card">
+                    <!-- Dynamic state: Logged Out vs Logged In -->
+                    <div id="cloud-logged-out">
+                        <p class="card-desc">Sync tasks in Firefox with your mobile app instantaneously.</p>
+                        <div class="input-group">
+                            <span class="material-symbols-outlined field-icon">mail</span>
+                            <input type="email" id="cloud-email" placeholder="Email identifier">
+                        </div>
+                        <div class="input-group">
+                            <span class="material-symbols-outlined field-icon">lock</span>
+                            <input type="password" id="cloud-pass" placeholder="Password PIN">
+                        </div>
+                        <button id="btn-cloud-login" class="btn-primary">
+                            <span class="material-symbols-outlined">cloud_sync</span>
+                            Login & Pull Sync
+                        </button>
+                    </div>
+                    
+                    <div id="cloud-logged-in" style="display: none;">
+                        <div class="status-row">
+                            <span class="material-symbols-outlined status-icon active">sync</span>
+                            <div>
+                                <span class="status-title">Synced Cloud Active</span>
+                                <span id="cloud-user-lbl" class="status-user">email@domain.com</span>
+                            </div>
+                        </div>
+                        <p class="card-desc">Changes automatically sync across your mobile & webpage.</p>
+                        <div class="btn-grid-3">
+                            <button id="btn-cloud-pull" class="btn-sec" title="Force pull sync">Pull</button>
+                            <button id="btn-cloud-push" class="btn-sec" title="Force push sync">Push</button>
+                            <button id="btn-cloud-logout" class="btn-danger" title="Disconnect account">Logout</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Manual File Backup Tools -->
+            <div class="sidebar-section backup-section">
+                <h3>MANUAL BACKUPS</h3>
+                <div class="backup-buttons">
+                    <button id="btn-export" class="btn-text">
+                        <span class="material-symbols-outlined">download</span>
+                        Export backup.json
+                    </button>
+                    <label class="btn-text file-label">
+                        <span class="material-symbols-outlined">upload</span>
+                        Import backup.json
+                        <input type="file" id="file-import" accept=".json" style="display: none;">
+                    </label>
+                </div>
+            </div>
+
+            <!-- Theme State Switcher -->
+            <div class="sidebar-footer">
+                <div class="theme-picker">
+                    <button class="theme-btn active" data-theme="dark" title="Dark Cosmic Theme">
+                        <span class="material-symbols-outlined">dark_mode</span>
+                    </button>
+                    <button class="theme-btn" data-theme="light" title="Light Slate Theme">
+                        <span class="material-symbols-outlined">light_mode</span>
+                    </button>
+                </div>
+                <div class="app-info">TaskThread Cloud Pro v1.0</div>
+            </div>
+        </aside>
+
+        <!-- Main Display Feed -->
+        <main class="main-content">
+            <!-- Header Bar -->
+            <header class="top-nav">
+                <div class="title-area">
+                    <h1 id="current-list-title">My Tasks</h1>
+                    <span id="sync-indicator" class="sync-pill">Local Mode</span>
+                </div>
+                <div class="header-actions">
+                    <div class="filter-chips">
+                        <button id="chip-all-tasks" class="filter-chip active">All</button>
+                        <button id="chip-starred" class="filter-chip">
+                            <span class="material-symbols-outlined">star</span>
+                            Starred
+                        </button>
+                        <button id="chip-completed" class="filter-chip">Completed</button>
+                    </div>
+                    <button id="btn-toggle-sort" class="btn-icon-labeled" title="Change sorting order">
+                        <span class="material-symbols-outlined" id="sort-icon">sort</span>
+                        <span id="sort-text">By User</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Tasks Layout list -->
+            <div class="feed-body">
+                <div id="tasks-empty-state" class="empty-state">
+                    <span class="material-symbols-outlined empty-icon">assignment_turned_in</span>
+                    <h3>A clean slate</h3>
+                    <p>No active tasks in this list. Click below to add one!</p>
+                </div>
+
+                <div id="tasks-container" class="tasks-list">
+                    <!-- Interactive tasks nested dynamic display -->
+                </div>
+            </div>
+
+            <!-- Floating Quick Add Button and Floating Quick Field -->
+            <footer class="quick-add-bar">
+                <div class="quick-add-box">
+                    <input type="text" id="task-quick-input" placeholder="+ Add a task, start typing...">
+                    <div class="quick-actions">
+                        <!-- Date Trigger Button -->
+                        <button id="btn-quick-date" class="btn-icon-action" title="Set due date">
+                            <span class="material-symbols-outlined">calendar_today</span>
+                            <span id="quick-date-lbl" class="badge-lbl" style="display: none;"></span>
+                        </button>
+                        <!-- Star Trigger Button -->
+                        <button id="btn-quick-star" class="btn-icon-action" title="Mark important">
+                            <span class="material-symbols-outlined" id="quick-star-icon">star_border</span>
+                        </button>
+                        <!-- Repetition Toggle Button -->
+                        <button id="btn-quick-repeat" class="btn-icon-action" title="Repetition settings">
+                            <span class="material-symbols-outlined" id="quick-repeat-icon">repeat_on</span>
+                        </button>
+                    </div>
+                    <button id="btn-quick-submit" class="btn-submit" disabled>
+                        <span class="material-symbols-outlined">forward</span>
+                    </button>
+                </div>
+
+                <!-- Floating Repeat Quick Options Sheet overlay -->
+                <div id="quick-repeat-drawer" class="repeat-overlay" style="display: none;">
+                    <h4>Repeat Settings</h4>
+                    <div class="repeat-row-chips">
+                        <button class="repeat-chip active" data-val="NONE">Single</button>
+                        <button class="repeat-chip" data-val="DAILY">Daily</button>
+                        <button class="repeat-chip" data-val="CUSTOM_OCCURRENCES">Limit (X)</button>
+                        <button class="repeat-chip" data-val="UNTIL_DATE">Till Date</button>
+                    </div>
+                    <div id="repeat-limit-box" class="form-row" style="display: none;">
+                        <label>Occurrences Limit:</label>
+                        <input type="number" id="repeat-occurrences-val" value="5" min="1" max="100">
+                    </div>
+                    <div id="repeat-date-box" class="form-row" style="display: none;">
+                        <label>Repeat Until:</label>
+                        <input type="date" id="repeat-until-val">
+                    </div>
+                    <div class="form-actions">
+                        <button id="btn-repeat-save" class="btn-primary-mini">Apply</button>
+                    </div>
+                </div>
+            </footer>
+        </main>
+    </div>
+
+    <!-- Edit Task Dialog Modal -->
+    <div id="dialog-overlay" class="dialog-overlay" style="display: none;">
+        <div class="dialog-card">
+            <div class="dialog-header">
+                <h3>Edit Task Details</h3>
+                <button id="btn-close-dialog" class="btn-icon">
+                    <span class="material-symbols-outlined">close</span>
+                </button>
+            </div>
+            <div class="dialog-body">
+                <div class="form-group">
+                    <label for="edit-title">Task Title</label>
+                    <input type="text" id="edit-title" class="form-ctrl" placeholder="Task name">
+                </div>
+                <div class="form-group">
+                    <label for="edit-details">Details / Notes</label>
+                    <textarea id="edit-details" class="form-ctrl text-area" placeholder="Add more detailed instructions..."></textarea>
+                </div>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="edit-due-date">Due Date</label>
+                        <input type="date" id="edit-due-date" class="form-ctrl">
+                    </div>
+                    <div class="form-group">
+                        <label for="edit-list-id">Move to List</label>
+                        <select id="edit-list-id" class="form-ctrl">
+                            <!-- Dynamic option selection lists -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Repeat Controls Inside Dialog -->
+                <div class="form-group repeat-section">
+                    <label>Repeating Rules</label>
+                    <div class="repeat-toggle-grid">
+                        <button class="dlg-repeat-chip" data-val="NONE">Single</button>
+                        <button class="dlg-repeat-chip" data-val="DAILY">Daily</button>
+                        <button class="dlg-repeat-chip" data-val="CUSTOM_OCCURRENCES">Limit</button>
+                        <button class="dlg-repeat-chip" data-val="UNTIL_DATE">Date Limit</button>
+                    </div>
+                    <div id="dlg-repeat-limit-box" class="sub-form-row" style="display: none;">
+                        <label>Occurrences Limit:</label>
+                        <input type="number" id="dlg-repeat-occurrences-val" class="form-ctrl-compact" value="5" min="1">
+                    </div>
+                    <div id="dlg-repeat-date-box" class="sub-form-row" style="display: none;">
+                        <label>End Date Limit:</label>
+                        <input type="date" id="dlg-repeat-until-val" class="form-ctrl-compact">
+                    </div>
+                </div>
+
+                <!-- Starred and subtasks summary -->
+                <div class="form-row-align">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="edit-is-starred"> Mark as Starred & Important
+                    </label>
+                </div>
+
+                <!-- Subtasks lists -->
+                <div class="subtask-container-header">
+                    <h4>Nested Subtasks</h4>
+                    <div class="subtasks-input-block">
+                        <input type="text" id="new-subtask-title" placeholder="+ Create nested subtask" class="form-ctrl-compact">
+                        <button id="btn-add-subtask" class="btn-sec-compact">Add</button>
+                    </div>
+                </div>
+                <div id="dialog-subtasks-list" class="dialog-subtask-list">
+                    <!-- Dynamic Subtasks nested list with check states -->
+                </div>
+            </div>
+            <div class="dialog-actions">
+                <button id="btn-delete-task" class="btn-danger-outline">
+                    <span class="material-symbols-outlined">delete</span>
+                    Delete Task
+                </button>
+                <div class="spacer"></div>
+                <button id="btn-cancel-dialog" class="btn-sec">Cancel</button>
+                <button id="btn-save-dialog" class="btn-primary">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Date Selection Dialog Overlay -->
+    <div id="quick-date-overlay" class="dialog-overlay-mini" style="display: none;">
+        <div class="dialog-card-mini">
+            <h4>Select Due Date</h4>
+            <input type="date" id="quick-date-picker" class="form-ctrl-compact" style="margin: 10px 0;">
+            <div class="btn-row-flex">
+                <button id="btn-quick-date-clear" class="btn-danger-compact">Clear</button>
+                <button id="btn-quick-date-set" class="btn-primary-compact">Set</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification Overlay -->
+    <div id="toast-notify" class="toast-card" style="display: none;">Success</div>
+
+    <script src="app.js"></script>
+</body>
+</html>
