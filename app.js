@@ -1144,6 +1144,33 @@
             };
         });
 
+        // Enable desktop click-and-drag mouse swiping for horizontal list inertia
+        const quickChipsContainer = document.querySelector(".time-quick-chips");
+        if (quickChipsContainer) {
+            let isDown = false;
+            let startX;
+            let scrollLeft;
+
+            quickChipsContainer.addEventListener("mousedown", (e) => {
+                isDown = true;
+                startX = e.pageX - quickChipsContainer.offsetLeft;
+                scrollLeft = quickChipsContainer.scrollLeft;
+            });
+            quickChipsContainer.addEventListener("mouseleave", () => {
+                isDown = false;
+            });
+            quickChipsContainer.addEventListener("mouseup", () => {
+                isDown = false;
+            });
+            quickChipsContainer.addEventListener("mousemove", (e) => {
+                if (!isDown) return;
+                e.preventDefault();
+                const x = e.pageX - quickChipsContainer.offsetLeft;
+                const walk = (x - startX) * 1.5; // Drag speed sensitivity multiplier
+                quickChipsContainer.scrollLeft = scrollLeft - walk;
+            });
+        }
+
         // Custom time input binding
         if (quickTimePickerInput) {
             quickTimePickerInput.oninput = () => {
