@@ -1379,19 +1379,38 @@ body.slate-light .time-options-area {
 }
 
 .time-quick-chips {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-    margin-bottom: 10px;
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    margin-bottom: 12px;
+    padding: 4px 2px;
+    scroll-snap-type: x mandatory;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; /* Hide scrollbar for Firefox */
+    -ms-overflow-style: none;  /* Hide scrollbar for IE/Edge */
+    cursor: grab;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+.time-quick-chips:active {
+    cursor: grabbing;
+}
+
+.time-quick-chips::-webkit-scrollbar {
+    display: none; /* Hide scrollbar for Chrome/Safari/Opera */
 }
 
 .time-chip {
+    flex: 0 0 auto;
+    scroll-snap-align: start;
+    min-width: 95px;
     background: none;
     border: 1px solid var(--dark-border);
     color: var(--dark-text-secondary);
     cursor: pointer;
     font-size: 11px;
-    padding: 6px 8px;
+    padding: 7px 10px;
     border-radius: 8px;
     text-align: center;
     transition: var(--transition);
