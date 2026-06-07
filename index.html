@@ -282,27 +282,43 @@
             
             <!-- Dynamic Time Options Container (Shown after selecting a date) -->
             <div id="quick-time-options-container" class="time-options-area" style="display: none; margin-top: 10px; border-top: 1px dashed var(--dark-border); padding-top: 12px;">
-                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                    <h4 style="font-size: 11px; font-weight: 600;">Select Time (Optional)</h4>
-                    <span style="font-size: 10px; opacity: 0.6; display: flex; align-items: center; gap: 4px;">Swipe <span class="material-symbols-outlined" style="font-size: 12px;">swipe</span></span>
-                </div>
+                <h4 style="font-size: 11px; font-weight: 600; margin-bottom: 8px;">Select Time (Optional)</h4>
                 <div class="time-quick-chips">
-                    <button class="time-chip" data-time="08:00">🌅 08:00 AM</button>
                     <button class="time-chip" data-time="09:00">🌅 09:00 AM</button>
-                    <button class="time-chip" data-time="11:00">🔔 11:00 AM</button>
-                    <button class="time-chip" data-time="12:00">☀️ 12:00 PM</button>
                     <button class="time-chip" data-time="13:00">☀️ 01:00 PM</button>
-                    <button class="time-chip" data-time="15:30">☕ 03:30 PM</button>
-                    <button class="time-chip" data-time="17:00">🌇 05:00 PM</button>
                     <button class="time-chip" data-time="18:00">🌇 06:00 PM</button>
-                    <button class="time-chip" data-time="19:30">🍽️ 07:30 PM</button>
                     <button class="time-chip" data-time="21:00">🌙 09:00 PM</button>
-                    <button class="time-chip" data-time="23:00">🛌 11:00 PM</button>
                 </div>
-                <div class="custom-time-row" style="display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: 10px;">
-                    <label style="font-size: 11px; font-weight: 500; opacity: 0.8;">Custom Time:</label>
-                    <input type="time" id="quick-time-picker" class="form-ctrl-compact" style="width: 120px; padding: 4px 6px;">
+                
+                <!-- Modern Analog/Digital M3 Clock Picker -->
+                <div id="m3-clock-picker" class="m3-clock-picker" style="margin-top: 12px;">
+                    <div class="m3-clock-display">
+                        <div class="m3-clock-digital-box">
+                            <button type="button" id="m3-clock-hour-btn" class="m3-digital-unit active">12</button>
+                            <span class="m3-clock-colon">:</span>
+                            <button type="button" id="m3-clock-minute-btn" class="m3-digital-unit">00</button>
+                        </div>
+                        <div class="m3-clock-ampm-col">
+                            <button type="button" id="m3-ampm-am" class="m3-ampm-unit active">AM</button>
+                            <button type="button" id="m3-ampm-pm" class="m3-ampm-unit">PM</button>
+                        </div>
+                    </div>
+                    
+                    <div class="m3-clock-dial-container">
+                        <div id="m3-clock-dial" class="m3-clock-dial">
+                            <div id="m3-clock-hand" class="m3-clock-hand">
+                                <div class="m3-clock-hand-pin"></div>
+                                <div class="m3-clock-hand-line"></div>
+                                <div class="m3-clock-hand-tip-circle"></div>
+                            </div>
+                            <div id="m3-clock-numbers" class="m3-clock-numbers">
+                                <!-- Dynamically generated hours or minutes numbers -->
+                            </div>
+                        </div>
+                    </div>
                 </div>
+
+                <input type="hidden" id="quick-time-picker">
             </div>
 
             <div class="btn-row-flex" style="margin-top: 16px;">
