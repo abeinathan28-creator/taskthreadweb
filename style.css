@@ -1367,6 +1367,58 @@ body.slate-light .dialog-card-mini {
     padding: 6px 12px;
 }
 
+/* Custom Time Selection Styling */
+.time-options-area {
+    margin-top: 10px;
+    border-top: 1px dashed var(--dark-border);
+    padding-top: 12px;
+}
+
+body.slate-light .time-options-area {
+    border-top-color: var(--light-border);
+}
+
+.time-quick-chips {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+
+.time-chip {
+    background: none;
+    border: 1px solid var(--dark-border);
+    color: var(--dark-text-secondary);
+    cursor: pointer;
+    font-size: 11px;
+    padding: 6px 8px;
+    border-radius: 8px;
+    text-align: center;
+    transition: var(--transition);
+}
+
+body.slate-light .time-chip {
+    border-color: var(--light-border);
+    color: var(--light-text-secondary);
+}
+
+.time-chip:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: var(--dark-text);
+}
+
+body.slate-light .time-chip:hover {
+    background-color: rgba(0, 0, 0, 0.03);
+    color: var(--light-text);
+}
+
+.time-chip.active {
+    background-color: rgba(63, 130, 244, 0.12);
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+    font-weight: 600;
+}
+
 /* Toast Cards notifications */
 .toast-card {
     position: fixed;
