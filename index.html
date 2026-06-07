@@ -213,11 +213,15 @@
                         <input type="date" id="edit-due-date" class="form-ctrl">
                     </div>
                     <div class="form-group">
-                        <label for="edit-list-id">Move to List</label>
-                        <select id="edit-list-id" class="form-ctrl">
-                            <!-- Dynamic option selection lists -->
-                        </select>
+                        <label for="edit-due-time">Due Time (Optional)</label>
+                        <input type="time" id="edit-due-time" class="form-ctrl">
                     </div>
+                </div>
+                <div class="form-group">
+                    <label for="edit-list-id">Move to List</label>
+                    <select id="edit-list-id" class="form-ctrl">
+                        <!-- Dynamic option selection lists -->
+                    </select>
                 </div>
 
                 <!-- Repeat Controls Inside Dialog -->
@@ -275,7 +279,23 @@
         <div class="dialog-card-mini">
             <h4>Select Due Date</h4>
             <input type="date" id="quick-date-picker" class="form-ctrl-compact" style="margin: 10px 0;">
-            <div class="btn-row-flex">
+            
+            <!-- Dynamic Time Options Container (Shown after selecting a date) -->
+            <div id="quick-time-options-container" class="time-options-area" style="display: none; margin-top: 10px; border-top: 1px dashed var(--dark-border); padding-top: 12px;">
+                <h4 style="font-size: 11px; font-weight: 600; margin-bottom: 8px;">Select Time (Optional)</h4>
+                <div class="time-quick-chips">
+                    <button class="time-chip" data-time="09:00">🌅 09:00 AM</button>
+                    <button class="time-chip" data-time="13:00">☀️ 01:00 PM</button>
+                    <button class="time-chip" data-time="18:00">🌇 06:00 PM</button>
+                    <button class="time-chip" data-time="21:00">🌙 09:00 PM</button>
+                </div>
+                <div class="custom-time-row" style="display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: 10px;">
+                    <label style="font-size: 11px; font-weight: 500; opacity: 0.8;">Custom Time:</label>
+                    <input type="time" id="quick-time-picker" class="form-ctrl-compact" style="width: 120px; padding: 4px 6px;">
+                </div>
+            </div>
+
+            <div class="btn-row-flex" style="margin-top: 16px;">
                 <button id="btn-quick-date-clear" class="btn-danger-compact">Clear</button>
                 <button id="btn-quick-date-set" class="btn-primary-compact">Set</button>
             </div>
