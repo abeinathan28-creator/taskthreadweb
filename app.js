@@ -1071,6 +1071,117 @@
         const timeOptionsContainer = document.getElementById("quick-time-options-container");
         const quickTimePickerInput = document.getElementById("quick-time-picker");
 
+        // Setup clock states
+        let m3ClockActiveMode = "hour"; // "hour" or "minute"
+        let m3ClockHour = 12; // 1-12
+        let m3ClockMinute = 0; // 0-59
+        let m3ClockAmPm = "AM"; // "AM" or "PM"
+
+        const parse24ToClock = (time24) => {
+            if (!time24) {
+                m3ClockHour = 12;
+                m3ClockMinute = 0;
+                m3ClockAmPm = "AM";
+                return;
+            }
+            const parts = time24.split(":");
+            let h = parseInt(parts[0], 10) || 0;
+            m3ClockMinute = parseInt(parts[1], 10) || 0;
+
+            if (h >= 12) {
+                m3ClockAmPm = "PM";
+                m3ClockHour = h === 12 ? 12 : h - 12;
+            } else {
+                m3ClockAmPm = "AM";
+                m3ClockHour = h === 0 ? 12 : h;
+            }
+        };
+
+        const get24FromClock = () => {
+            let h = m3ClockHour;
+            if (m3ClockAmPm === "PM") {
+                if (h !== 12) h += 12;
+            } else {
+                if (h === 12) h = 0;
+            }
+            return `${String(h).padStart(2, '0')}:${String(m3ClockMinute).padStart(2, '0')}`;
+        };
+
+        const renderM3Clock = () => {
+            const numbersContainer = document.getElementById("m3-clock-numbers");
+            const clockHand = document.getElementById("m3-clock-hand");
+            const hourBtn = document.getElementById("m3-clock-hour-btn");
+            const minuteBtn = document.getElementById("m3-clock-minute-btn");
+            const amBtn = document.getElementById("m3-ampm-am");
+            const pmBtn = document.getElementById("m3-ampm-pm");
+
+            if (!numbersContainer) return;
+
+            // Highlight digital inputs
+            if (m3ClockActiveMode === "hour") {
+                hourBtn.classList.add("active");
+                minuteBtn.classList.remove("active");
+            } else {
+                hourBtn.classList.remove("active");
+                minuteBtn.classList.add("active");
+            }
+
+            // Digital labels
+            hourBtn.textContent = m3ClockHour;
+            minuteBtn.textContent = String(m3ClockMinute).padStart(2, '0');
+
+            // AM/PM state
+            if (m3ClockAmPm === "AM") {
+                amBtn.classList.add("active");
+                pmBtn.classList.remove("active");
+            } else {
+                amBtn.classList.remove("active");
+                pmBtn.classList.add("active");
+            }
+
+            // Draw radial numbers
+            numbersContainer.innerHTML = "";
+            const radius = 72; // px radius
+
+            if (m3ClockActiveMode === "hour") {
+                for (let i = 1; i <= 12; i++) {
+                    const angleDeg = (i % 12) * 30;
+                    const angleRad = angleDeg * (Math.PI / 180);
+                    const x = Math.sin(angleRad) * radius;
+                    const y = -Math.cos(angleRad) * radius;
+
+                    const numDiv = document.createElement("div");
+                    numDiv.className = "m3-clock-number" + (i === m3ClockHour ? " active" : "");
+                    numDiv.textContent = i;
+                    numDiv.style.left = `calc(50% + ${x}px)`;
+                    numDiv.style.top = `calc(50% + ${y}px)`;
+                    numbersContainer.appendChild(numDiv);
+                }
+
+                const targetAngle = (m3ClockHour % 12) * 30;
+                clockHand.style.transform = `rotate(${targetAngle}deg)`;
+            } else {
+                for (let i = 0; i < 12; i++) {
+                    const minuteVal = i * 5;
+                    const angleDeg = i * 30;
+                    const angleRad = angleDeg * (Math.PI / 180);
+                    const x = Math.sin(angleRad) * radius;
+                    const y = -Math.cos(angleRad) * radius;
+
+                    const numDiv = document.createElement("div");
+                    const isActive = Math.round(m3ClockMinute / 5) * 5 % 60 === minuteVal;
+                    numDiv.className = "m3-clock-number" + (isActive ? " active" : "");
+                    numDiv.textContent = String(minuteVal).padStart(2, '0');
+                    numDiv.style.left = `calc(50% + ${x}px)`;
+                    numDiv.style.top = `calc(50% + ${y}px)`;
+                    numbersContainer.appendChild(numDiv);
+                }
+
+                const targetAngle = m3ClockMinute * 6;
+                clockHand.style.transform = `rotate(${targetAngle}deg)`;
+            }
+        };
+
         const updateQuickTimeUI = () => {
             document.querySelectorAll(".time-chip").forEach(c => {
                 if (quickTimeSelected && c.dataset.time === quickTimeSelected) {
@@ -1082,7 +1193,136 @@
             if (quickTimePickerInput) {
                 quickTimePickerInput.value = quickTimeSelected || "";
             }
+
+            parse24ToClock(quickTimeSelected);
+            renderM3Clock();
         };
+
+        // Click/drag on Clock Dial handler
+        const dial = document.getElementById("m3-clock-dial");
+        let isDraggingClock = false;
+
+        const handleClockDialMove = (clientX, clientY) => {
+            if (!dial) return;
+            const rect = dial.getBoundingClientRect();
+            const cx = rect.left + rect.width / 2;
+            const cy = rect.top + rect.height / 2;
+            const dx = clientX - cx;
+            const dy = clientY - cy;
+
+            let angleRad = Math.atan2(dx, -dy);
+            if (angleRad < 0) angleRad += 2 * Math.PI;
+            const angleDeg = angleRad * (180 / Math.PI);
+
+            if (m3ClockActiveMode === "hour") {
+                let hour = Math.round(angleDeg / 30);
+                if (hour === 0) hour = 12;
+                m3ClockHour = hour;
+            } else {
+                let minute = Math.round(angleDeg / 6) % 60;
+                m3ClockMinute = minute;
+            }
+
+            quickTimeSelected = get24FromClock();
+            
+            // Highlight matching quick time chips (if any matches) and update hidden picker input
+            document.querySelectorAll(".time-chip").forEach(c => {
+                if (c.dataset.time === quickTimeSelected) {
+                    c.classList.add("active");
+                } else {
+                    c.classList.remove("active");
+                }
+            });
+            if (quickTimePickerInput) {
+                quickTimePickerInput.value = quickTimeSelected;
+            }
+
+            renderM3Clock();
+        };
+
+        // Dial Events
+        if (dial) {
+            dial.onmousedown = (e) => {
+                isDraggingClock = true;
+                handleClockDialMove(e.clientX, e.clientY);
+            };
+
+            window.addEventListener("mousemove", (e) => {
+                if (isDraggingClock) {
+                    handleClockDialMove(e.clientX, e.clientY);
+                }
+            });
+
+            window.addEventListener("mouseup", () => {
+                if (isDraggingClock) {
+                    isDraggingClock = false;
+                    if (m3ClockActiveMode === "hour") {
+                        setTimeout(() => {
+                            m3ClockActiveMode = "minute";
+                            renderM3Clock();
+                        }, 300);
+                    }
+                }
+            });
+
+            dial.ontouchstart = (e) => {
+                if (e.touches && e.touches[0]) {
+                    isDraggingClock = true;
+                    handleClockDialMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            };
+
+            dial.ontouchmove = (e) => {
+                if (isDraggingClock && e.touches && e.touches[0]) {
+                    handleClockDialMove(e.touches[0].clientX, e.touches[0].clientY);
+                }
+            };
+
+            dial.ontouchend = () => {
+                if (isDraggingClock) {
+                    isDraggingClock = false;
+                    if (m3ClockActiveMode === "hour") {
+                        setTimeout(() => {
+                            m3ClockActiveMode = "minute";
+                            renderM3Clock();
+                        }, 300);
+                    }
+                }
+            };
+        }
+
+        // Digital Interactive Units Binding
+        const hourBtn = document.getElementById("m3-clock-hour-btn");
+        const minuteBtn = document.getElementById("m3-clock-minute-btn");
+        const amBtn = document.getElementById("m3-ampm-am");
+        const pmBtn = document.getElementById("m3-ampm-pm");
+
+        if (hourBtn) {
+            hourBtn.onclick = () => {
+                m3ClockActiveMode = "hour";
+                renderM3Clock();
+            };
+        }
+        if (minuteBtn) {
+            minuteBtn.onclick = () => {
+                m3ClockActiveMode = "minute";
+                renderM3Clock();
+            };
+        }
+        if (amBtn) {
+            amBtn.onclick = () => {
+                m3ClockAmPm = "AM";
+                quickTimeSelected = get24FromClock();
+                updateQuickTimeUI();
+            };
+        }
+        if (pmBtn) {
+            pmBtn.onclick = () => {
+                m3ClockAmPm = "PM";
+                quickTimeSelected = get24FromClock();
+                updateQuickTimeUI();
+            };
+        }
 
         document.getElementById("btn-quick-date").onclick = () => {
             let initialDateStr = "";
@@ -1101,6 +1341,7 @@
             }
             
             datePicker.value = initialDateStr;
+            m3ClockActiveMode = "hour"; // Reset to selecting hour first
             updateQuickTimeUI();
 
             if (initialDateStr) {
@@ -1135,55 +1376,10 @@
         // Time chip buttons binding
         document.querySelectorAll(".time-chip").forEach(chip => {
             chip.onclick = () => {
-                document.querySelectorAll(".time-chip").forEach(c => c.classList.remove("active"));
-                chip.classList.add("active");
                 quickTimeSelected = chip.dataset.time;
-                if (quickTimePickerInput) {
-                    quickTimePickerInput.value = quickTimeSelected;
-                }
+                updateQuickTimeUI();
             };
         });
-
-        // Enable desktop click-and-drag mouse swiping for horizontal list inertia
-        const quickChipsContainer = document.querySelector(".time-quick-chips");
-        if (quickChipsContainer) {
-            let isDown = false;
-            let startX;
-            let scrollLeft;
-
-            quickChipsContainer.addEventListener("mousedown", (e) => {
-                isDown = true;
-                startX = e.pageX - quickChipsContainer.offsetLeft;
-                scrollLeft = quickChipsContainer.scrollLeft;
-            });
-            quickChipsContainer.addEventListener("mouseleave", () => {
-                isDown = false;
-            });
-            quickChipsContainer.addEventListener("mouseup", () => {
-                isDown = false;
-            });
-            quickChipsContainer.addEventListener("mousemove", (e) => {
-                if (!isDown) return;
-                e.preventDefault();
-                const x = e.pageX - quickChipsContainer.offsetLeft;
-                const walk = (x - startX) * 1.5; // Drag speed sensitivity multiplier
-                quickChipsContainer.scrollLeft = scrollLeft - walk;
-            });
-        }
-
-        // Custom time input binding
-        if (quickTimePickerInput) {
-            quickTimePickerInput.oninput = () => {
-                quickTimeSelected = quickTimePickerInput.value;
-                document.querySelectorAll(".time-chip").forEach(c => {
-                    if (c.dataset.time === quickTimeSelected) {
-                        c.classList.add("active");
-                    } else {
-                        c.classList.remove("active");
-                    }
-                });
-            };
-        }
 
         document.getElementById("btn-quick-date-clear").onclick = () => {
             quickDueDateSelected = null;
