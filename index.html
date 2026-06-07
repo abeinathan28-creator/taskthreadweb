@@ -282,12 +282,22 @@
             
             <!-- Dynamic Time Options Container (Shown after selecting a date) -->
             <div id="quick-time-options-container" class="time-options-area" style="display: none; margin-top: 10px; border-top: 1px dashed var(--dark-border); padding-top: 12px;">
-                <h4 style="font-size: 11px; font-weight: 600; margin-bottom: 8px;">Select Time (Optional)</h4>
+                <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                    <h4 style="font-size: 11px; font-weight: 600;">Select Time (Optional)</h4>
+                    <span style="font-size: 10px; opacity: 0.6; display: flex; align-items: center; gap: 4px;">Swipe <span class="material-symbols-outlined" style="font-size: 12px;">swipe</span></span>
+                </div>
                 <div class="time-quick-chips">
+                    <button class="time-chip" data-time="08:00">🌅 08:00 AM</button>
                     <button class="time-chip" data-time="09:00">🌅 09:00 AM</button>
+                    <button class="time-chip" data-time="11:00">🔔 11:00 AM</button>
+                    <button class="time-chip" data-time="12:00">☀️ 12:00 PM</button>
                     <button class="time-chip" data-time="13:00">☀️ 01:00 PM</button>
+                    <button class="time-chip" data-time="15:30">☕ 03:30 PM</button>
+                    <button class="time-chip" data-time="17:00">🌇 05:00 PM</button>
                     <button class="time-chip" data-time="18:00">🌇 06:00 PM</button>
+                    <button class="time-chip" data-time="19:30">🍽️ 07:30 PM</button>
                     <button class="time-chip" data-time="21:00">🌙 09:00 PM</button>
+                    <button class="time-chip" data-time="23:00">🛌 11:00 PM</button>
                 </div>
                 <div class="custom-time-row" style="display: flex; align-items: center; gap: 8px; justify-content: space-between; margin-top: 10px;">
                     <label style="font-size: 11px; font-weight: 500; opacity: 0.8;">Custom Time:</label>
