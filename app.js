@@ -123,8 +123,8 @@
         };
 
         try {
-            const response = await fetch(`https://kvdb.io/uDszgY9gGvD77Jshq8yY3m/${cloudKey}`, {
-                method: "PUT",
+            const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`, {
+                method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
@@ -144,7 +144,7 @@
         if (!cloudKey) return;
         updateSyncIndicator(false, "Syncing...");
         try {
-            const response = await fetch(`https://kvdb.io/uDszgY9gGvD77Jshq8yY3m/${cloudKey}`);
+            const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`);
             if (response.ok) {
                 const cloudPayload = await response.json();
                 if (cloudPayload && cloudPayload.lists && cloudPayload.tasks) {
