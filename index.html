@@ -43,11 +43,15 @@
                         <p class="card-desc">Sync tasks in Firefox with your mobile app instantaneously.</p>
                         <div class="input-group">
                             <span class="material-symbols-outlined field-icon">mail</span>
-                            <input type="email" id="cloud-email" placeholder="Email identifier">
+                            <input type="email" id="cloud-email" placeholder="Email (e.g. abeinathan@protonmail.com)">
                         </div>
                         <div class="input-group">
                             <span class="material-symbols-outlined field-icon">lock</span>
                             <input type="password" id="cloud-pass" placeholder="Password PIN">
+                        </div>
+                        <div class="input-group">
+                            <span class="material-symbols-outlined field-icon">dns</span>
+                            <input type="text" id="cloud-url" placeholder="Sync Worker Base URL" value="https://sync.abeinathan.workers.dev/">
                         </div>
                         <button id="btn-cloud-login" class="btn-primary">
                             <span class="material-symbols-outlined">cloud_sync</span>
