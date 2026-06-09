@@ -10,6 +10,7 @@
     let cloudEmail = localStorage.getItem("thread_sync_email") || null;
     let cloudKey = localStorage.getItem("thread_sync_key") || null;
     let syncStateMsg = "Local Mode";
+    let webSearchQuery = "";
 
     // Temp variables for the Quick Add inputs
     let quickDueDateSelected = null;
@@ -317,6 +318,22 @@
             listTasks = listTasks.filter(t => t.isStarred);
         } else if (filterMode === "completed") {
             listTasks = listTasks.filter(t => t.isCompleted);
+        }
+
+        if (webSearchQuery && webSearchQuery.trim()) {
+            const query = webSearchQuery.toLowerCase().trim();
+            const matchingTaskIds = new Set();
+            listTasks.forEach(t => {
+                const titleMatches = t.title && t.title.toLowerCase().includes(query);
+                const detailsMatches = t.details && t.details.toLowerCase().includes(query);
+                if (titleMatches || detailsMatches) {
+                    matchingTaskIds.add(t.id);
+                    if (t.parentTaskId) {
+                        matchingTaskIds.add(t.parentTaskId);
+                    }
+                }
+            });
+            listTasks = listTasks.filter(t => matchingTaskIds.has(t.id));
         }
 
         // Parent and subtask separation
@@ -1487,5 +1504,28 @@
         document.getElementById("dlg-repeat-until-val").oninput = (e) => {
             editingRepeatSelected.untilDate = e.target.value ? new Date(e.target.value + "T12:00:00").getTime() : null;
         };
+
+        // Real-time top header search functionality
+        const searchInput = document.getElementById("web-search-input");
+        const searchClear = document.getElementById("web-search-clear");
+        if (searchInput) {
+            searchInput.oninput = (e) => {
+                webSearchQuery = e.target.value || "";
+                if (webSearchQuery.trim()) {
+                    searchClear.style.display = "block";
+                } else {
+                    searchClear.style.display = "none";
+                }
+                renderTasksFeed();
+            };
+        }
+        if (searchClear) {
+            searchClear.onclick = () => {
+                searchInput.value = "";
+                webSearchQuery = "";
+                searchClear.style.display = "none";
+                renderTasksFeed();
+            };
+        }
     });
 })();
