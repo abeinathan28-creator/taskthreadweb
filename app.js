@@ -124,7 +124,7 @@
 
         try {
             const response = await fetch(`https://kvdb.io/uDszgY9gGvD77Jshq8yY3m/${cloudKey}`, {
-                method: "POST",
+                method: "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(payload)
             });
