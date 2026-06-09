@@ -1052,91 +1052,6 @@
             }
         };
 
-        // Key Rotation and Password PIN Modification
-        const rotateBtn = document.getElementById("btn-cloud-rotate");
-        if (rotateBtn) {
-            rotateBtn.onclick = async () => {
-                if (!cloudEmail || !cloudKey || !cloudEncKey) {
-                    showToast("Error: No active sync session to rotate.", true);
-                    return;
-                }
-                const newPass = prompt("Enter your NEW Password PIN to rotate keys securely:");
-                if (!newPass || !newPass.trim()) {
-                    showToast("Key rotation canceled.");
-                    return;
-                }
-                
-                rotateBtn.disabled = true;
-                const oldText = rotateBtn.textContent;
-                rotateBtn.textContent = "Deriving and encrypting new payload...";
-                showToast("Initiating secure zero-knowledge key rotation...");
-
-                try {
-                    // 1. Prepare current local payload
-                    const payload = {
-                        lists: lists,
-                        tasks: tasks,
-                        version: 1,
-                        exportedAt: Date.now()
-                    };
-                    const jsonStr = JSON.stringify(payload);
-
-                    // 2. Derive new key material with PBKDF2
-                    const newDerived = await deriveKeysPBKDF2(cloudEmail, newPass);
-                    const newBucketKey = newDerived.bucketHex;
-                    const newEncKey = newDerived.encHex;
-
-                    // 3. Encrypt payload with new key
-                    const ciphertext = await encryptE2E(jsonStr, newEncKey);
-                    const newPayload = JSON.stringify({
-                        encrypted: true,
-                        ciphertext: ciphertext
-                    });
-
-                    // 4. Push payload to the new bucket ID
-                    const isKvdb = cloudBaseUrl.includes("kvdb.io");
-                    const normalizedBase = cloudBaseUrl.endsWith("/") ? cloudBaseUrl : `${cloudBaseUrl}/`;
-                    const pushNewResponse = await fetch(`${normalizedBase}${newBucketKey}`, {
-                        method: isKvdb ? "POST" : "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: newPayload
-                    });
-
-                    if (!pushNewResponse.ok) {
-                        throw new Error(`Failed to provision new bucket. Server returned code ${pushNewResponse.status}`);
-                    }
-
-                    // 5. Clean / wipe the OLD bucket securely (zero out data so old PIN won't reveal anything)
-                    const tombstone = JSON.stringify({
-                        rotated: true,
-                        timestamp: Date.now()
-                    });
-                    await fetch(`${normalizedBase}${cloudKey}`, {
-                        method: isKvdb ? "POST" : "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: tombstone
-                    }).catch(err => {
-                        console.warn("Could not wipe old slot, proceeding anyway:", err);
-                    });
-
-                    // 6. Apply new credentials locally
-                    cloudKey = newBucketKey;
-                    cloudEncKey = newEncKey;
-                    localStorage.setItem("thread_sync_key", newBucketKey);
-                    localStorage.setItem("thread_sync_enc_key", newEncKey);
-
-                    showToast("Password PIN successfully modified & E2EE Keys Rotated!");
-                    updateSyncIndicator(true);
-                } catch (err) {
-                    console.error("Key rotation failure:", err);
-                    showToast(`Rotation Failed: ${err.message}`, true);
-                } finally {
-                    rotateBtn.disabled = false;
-                    rotateBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">key_carrier</span> Rotate Password PIN';
-                }
-            };
-        }
-
         // Disconnect logout cloud sync binds
         document.getElementById("btn-cloud-logout").onclick = () => {
             if (confirm("Disconnect database sync? No data will be lost offline.")) {
@@ -1153,9 +1068,6 @@
                 showToast("Sync disconnected.");
             }
         };
-
-        document.getElementById("btn-cloud-pull").onclick = () => downloadDatabaseFromCloudAndMerge();
-        document.getElementById("btn-cloud-push").onclick = () => uploadDatabaseToCloud();
 
         // If credentials are cached, boot into auto sync on load
         if (cloudEmail && cloudKey) {
@@ -1174,6 +1086,13 @@
                 downloadDatabaseFromCloudAndMerge(); // Pull dynamic database state
             }
         }
+
+        // Automatic continuous background pull sync (every 15 seconds)
+        setInterval(() => {
+            if (cloudEmail && cloudKey && cloudEncKey) {
+                downloadDatabaseFromCloudAndMerge();
+            }
+        }, 15000);
 
         // 3. Manual JSON files export triggers
         document.getElementById("btn-export").onclick = () => {
