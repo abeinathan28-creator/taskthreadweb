@@ -10,6 +10,7 @@
     let cloudEmail = localStorage.getItem("thread_sync_email") || null;
     let cloudKey = localStorage.getItem("thread_sync_key") || null;
     let cloudEncKey = localStorage.getItem("thread_sync_enc_key") || null;
+    let cloudBaseUrl = localStorage.getItem("thread_sync_base_url") || "https://sync.abeinathan.workers.dev/";
     let syncStateMsg = "Local Mode";
     let webSearchQuery = "";
 
@@ -245,8 +246,10 @@
         }
 
         try {
-            const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`, {
-                method: "POST",
+            const isKvdb = cloudBaseUrl.includes("kvdb.io");
+            const normalizedBase = cloudBaseUrl.endsWith("/") ? cloudBaseUrl : `${cloudBaseUrl}/`;
+            const response = await fetch(`${normalizedBase}${cloudKey}`, {
+                method: isKvdb ? "POST" : "PUT",
                 headers: { "Content-Type": "application/json" },
                 body: bodyPayload
             });
@@ -266,7 +269,8 @@
         if (!cloudKey) return;
         updateSyncIndicator(false, "Syncing...");
         try {
-            const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`);
+            const normalizedBase = cloudBaseUrl.endsWith("/") ? cloudBaseUrl : `${cloudBaseUrl}/`;
+            const response = await fetch(`${normalizedBase}${cloudKey}`);
             if (response.ok) {
                 const cloudPayload = await response.json();
                 let finalPayload = cloudPayload;
@@ -1002,13 +1006,19 @@
         // 2. Cloud login & connect sync binds
         const emailInp = document.getElementById("cloud-email");
         const passInp = document.getElementById("cloud-pass");
+        const urlInp = document.getElementById("cloud-url");
         const loginBtn = document.getElementById("btn-cloud-login");
+
+        if (urlInp && cloudBaseUrl) {
+            urlInp.value = cloudBaseUrl;
+        }
 
         loginBtn.onclick = async () => {
             const em = emailInp.value;
             const ps = passInp.value;
-            if (!em.trim() || !ps.trim()) {
-                showToast("Please enter an Email and password PIN", true);
+            const urlVal = urlInp ? urlInp.value : "https://sync.abeinathan.workers.dev/";
+            if (!em.trim() || !ps.trim() || !urlVal.trim()) {
+                showToast("Please enter an Email, password PIN, and sync base URL", true);
                 return;
             }
 
@@ -1020,10 +1030,12 @@
                 cloudEmail = em;
                 cloudKey = derived.bucketHex;
                 cloudEncKey = derived.encHex;
+                cloudBaseUrl = urlVal;
 
                 localStorage.setItem("thread_sync_email", em);
                 localStorage.setItem("thread_sync_key", derived.bucketHex);
                 localStorage.setItem("thread_sync_enc_key", derived.encHex);
+                localStorage.setItem("thread_sync_base_url", urlVal);
 
                 document.getElementById("cloud-logged-out").style.display = "none";
                 document.getElementById("cloud-logged-in").style.display = "block";
@@ -1082,8 +1094,10 @@
                     });
 
                     // 4. Push payload to the new bucket ID
-                    const pushNewResponse = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${newBucketKey}`, {
-                        method: "POST",
+                    const isKvdb = cloudBaseUrl.includes("kvdb.io");
+                    const normalizedBase = cloudBaseUrl.endsWith("/") ? cloudBaseUrl : `${cloudBaseUrl}/`;
+                    const pushNewResponse = await fetch(`${normalizedBase}${newBucketKey}`, {
+                        method: isKvdb ? "POST" : "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: newPayload
                     });
@@ -1097,8 +1111,8 @@
                         rotated: true,
                         timestamp: Date.now()
                     });
-                    await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`, {
-                        method: "POST",
+                    await fetch(`${normalizedBase}${cloudKey}`, {
+                        method: isKvdb ? "POST" : "PUT",
                         headers: { "Content-Type": "application/json" },
                         body: tombstone
                     }).catch(err => {
