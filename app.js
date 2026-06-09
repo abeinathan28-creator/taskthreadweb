@@ -9,6 +9,7 @@
     // Cloud credentials sync parameters
     let cloudEmail = localStorage.getItem("thread_sync_email") || null;
     let cloudKey = localStorage.getItem("thread_sync_key") || null;
+    let cloudEncKey = localStorage.getItem("thread_sync_enc_key") || null;
     let syncStateMsg = "Local Mode";
     let webSearchQuery = "";
 
@@ -37,24 +38,130 @@
         return "web_" + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     }
 
-    // Helper: SHA-256 for Sync login Key
-    async function getSHA256Hash(email, password) {
-        const keyRaw = `${email.toLowerCase().trim()}:${password}`;
+    // E2EE PBKDF2 Key Derivation (zero-knowledge key-stretching)
+    async function deriveKeysPBKDF2(email, password) {
+        const encoder = new TextEncoder();
+        const passData = encoder.encode(password);
+        const saltData = encoder.encode(email.toLowerCase().trim());
         try {
-            const encoder = new TextEncoder();
-            const data = encoder.encode(keyRaw);
-            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-            const hashArray = Array.from(new Uint8Array(hashBuffer));
-            return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+            const baseKey = await crypto.subtle.importKey(
+                "raw",
+                passData,
+                { name: "PBKDF2" },
+                false,
+                ["deriveBits"]
+            );
+            const derivedBuffer = await crypto.subtle.deriveBits(
+                {
+                    name: "PBKDF2",
+                    salt: saltData,
+                    iterations: 10000,
+                    hash: "SHA-256"
+                },
+                baseKey,
+                512
+            );
+            const derivedBytes = new Uint8Array(derivedBuffer);
+            const bucketBytes = derivedBytes.slice(0, 32);
+            const encBytes = derivedBytes.slice(32, 64);
+
+            const bucketHex = Array.from(bucketBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+            const encHex = Array.from(encBytes).map(b => b.toString(16).padStart(2, "0")).join("");
+            return { bucketHex, encHex };
         } catch (e) {
-            // Fallback lightweight hash for compatibility
-            let hash = 0;
-            for (let i = 0; i < keyRaw.length; i++) {
-                hash = (hash << 5) - hash + keyRaw.charCodeAt(i);
-                hash |= 0;
-            }
-            return "user_fallback_" + Math.abs(hash);
+            console.warn("PBKDF2 derivation failed, falling back to SHA-256 stretching:", e);
+            const keyRaw = `${email.toLowerCase().trim()}:${password}`;
+            const hashBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(keyRaw));
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            const bucketHex = hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+            
+            const encRaw = `${keyRaw}:taskthread_e2e_v1`;
+            const encBuffer = await crypto.subtle.digest("SHA-256", encoder.encode(encRaw));
+            const encArray = Array.from(new Uint8Array(encBuffer));
+            const encHex = encArray.map(b => b.toString(16).padStart(2, "0")).join("");
+            return { bucketHex, encHex };
         }
+    }
+
+    // E2EE Helper: Hex string to Uint8Array
+    function hexToBytes(hex) {
+        const bytes = new Uint8Array(hex.length / 2);
+        for (let i = 0; i < hex.length; i += 2) {
+            bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+        }
+        return bytes;
+    }
+
+    // E2EE Helper: ArrayBuffer to Base64
+    function arrayBufferToBase64(buffer) {
+        let binary = '';
+        const bytes = new Uint8Array(buffer);
+        const len = bytes.byteLength;
+        for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+        }
+        return window.btoa(binary);
+    }
+
+    // E2EE Helper: Base64 to ArrayBuffer (with robust padding support)
+    function base64ToArrayBuffer(base64) {
+        let formatted = base64.trim().replace(/\s/g, "");
+        while (formatted.length % 4 !== 0) {
+            formatted += '=';
+        }
+        const binaryString = window.atob(formatted);
+        const len = binaryString.length;
+        const bytes = new Uint8Array(len);
+        for (let i = 0; i < len; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes.buffer;
+    }
+
+    // E2EE Helper: AES-GCM Encrypt
+    async function encryptE2E(plaintext, encKeyHex) {
+        const keyBytes = hexToBytes(encKeyHex);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const cryptoKey = await crypto.subtle.importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["encrypt"]
+        );
+        const ciphertextBuffer = await crypto.subtle.encrypt(
+            { name: "AES-GCM", iv: iv },
+            cryptoKey,
+            new TextEncoder().encode(plaintext)
+        );
+        const combined = new Uint8Array(iv.length + ciphertextBuffer.byteLength);
+        combined.set(iv, 0);
+        combined.set(new Uint8Array(ciphertextBuffer), iv.length);
+        return arrayBufferToBase64(combined);
+    }
+
+    // E2EE Helper: AES-GCM Decrypt
+    async function decryptE2E(base64Ciphertext, encKeyHex) {
+        const keyBytes = hexToBytes(encKeyHex);
+        const combined = new Uint8Array(base64ToArrayBuffer(base64Ciphertext));
+        if (combined.length < 12) {
+            throw new Error("Ciphertext too short for IV");
+        }
+        const iv = combined.slice(0, 12);
+        const ciphertextWithTag = combined.slice(12);
+        const cryptoKey = await crypto.subtle.importKey(
+            "raw",
+            keyBytes,
+            { name: "AES-GCM" },
+            false,
+            ["decrypt"]
+        );
+        const decryptedBuffer = await crypto.subtle.decrypt(
+            { name: "AES-GCM", iv: iv },
+            cryptoKey,
+            ciphertextWithTag
+        );
+        return new TextDecoder().decode(decryptedBuffer);
     }
 
     // Initialize Default Lists and State Data if empty
@@ -122,11 +229,26 @@
             exportedAt: Date.now()
         };
 
+        let bodyPayload = JSON.stringify(payload);
+        if (cloudEncKey) {
+            try {
+                const ciphertext = await encryptE2E(bodyPayload, cloudEncKey);
+                bodyPayload = JSON.stringify({
+                    encrypted: true,
+                    ciphertext: ciphertext
+                });
+            } catch (err) {
+                console.error("Encryption error:", err);
+                showToast("Encryption failed locally. Sync aborted.", true);
+                return;
+            }
+        }
+
         try {
             const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(payload)
+                body: bodyPayload
             });
             if (response.ok) {
                 console.log("Synchronized to cloud successfully.");
@@ -147,8 +269,23 @@
             const response = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`);
             if (response.ok) {
                 const cloudPayload = await response.json();
-                if (cloudPayload && cloudPayload.lists && cloudPayload.tasks) {
-                    mergeDatabases(cloudPayload);
+                let finalPayload = cloudPayload;
+                if (cloudPayload && cloudPayload.encrypted && cloudPayload.ciphertext) {
+                    if (!cloudEncKey) {
+                        showToast("Error: Cloud data is encrypted. Please sign in again with your password PIN.", true);
+                        return;
+                    }
+                    try {
+                        const decryptedStr = await decryptE2E(cloudPayload.ciphertext, cloudEncKey);
+                        finalPayload = JSON.parse(decryptedStr);
+                    } catch (err) {
+                        console.error("Decryption error:", err);
+                        showToast("Failed to decrypt cloud data. Check your password PIN.", true);
+                        return;
+                    }
+                }
+                if (finalPayload && finalPayload.lists && finalPayload.tasks) {
+                    mergeDatabases(finalPayload);
                     showToast("Successfully synchronized with TaskThread Cloud!");
                 }
             } else if (response.status === 404) {
@@ -879,18 +1016,20 @@
             loginBtn.textContent = "Connecting...";
 
             try {
-                const hash = await getSHA256Hash(em, ps);
+                const derived = await deriveKeysPBKDF2(em, ps);
                 cloudEmail = em;
-                cloudKey = hash;
+                cloudKey = derived.bucketHex;
+                cloudEncKey = derived.encHex;
 
                 localStorage.setItem("thread_sync_email", em);
-                localStorage.setItem("thread_sync_key", hash);
+                localStorage.setItem("thread_sync_key", derived.bucketHex);
+                localStorage.setItem("thread_sync_enc_key", derived.encHex);
 
                 document.getElementById("cloud-logged-out").style.display = "none";
                 document.getElementById("cloud-logged-in").style.display = "block";
                 document.getElementById("cloud-user-lbl").textContent = em;
 
-                showToast("Logging in. Merging dynamic cloud databases...");
+                showToast("Logging in. Merging dynamic cloud databases with E2EE secure sync...");
                 await downloadDatabaseFromCloudAndMerge();
             } catch (e) {
                 console.error(e);
@@ -901,13 +1040,98 @@
             }
         };
 
+        // Key Rotation and Password PIN Modification
+        const rotateBtn = document.getElementById("btn-cloud-rotate");
+        if (rotateBtn) {
+            rotateBtn.onclick = async () => {
+                if (!cloudEmail || !cloudKey || !cloudEncKey) {
+                    showToast("Error: No active sync session to rotate.", true);
+                    return;
+                }
+                const newPass = prompt("Enter your NEW Password PIN to rotate keys securely:");
+                if (!newPass || !newPass.trim()) {
+                    showToast("Key rotation canceled.");
+                    return;
+                }
+                
+                rotateBtn.disabled = true;
+                const oldText = rotateBtn.textContent;
+                rotateBtn.textContent = "Deriving and encrypting new payload...";
+                showToast("Initiating secure zero-knowledge key rotation...");
+
+                try {
+                    // 1. Prepare current local payload
+                    const payload = {
+                        lists: lists,
+                        tasks: tasks,
+                        version: 1,
+                        exportedAt: Date.now()
+                    };
+                    const jsonStr = JSON.stringify(payload);
+
+                    // 2. Derive new key material with PBKDF2
+                    const newDerived = await deriveKeysPBKDF2(cloudEmail, newPass);
+                    const newBucketKey = newDerived.bucketHex;
+                    const newEncKey = newDerived.encHex;
+
+                    // 3. Encrypt payload with new key
+                    const ciphertext = await encryptE2E(jsonStr, newEncKey);
+                    const newPayload = JSON.stringify({
+                        encrypted: true,
+                        ciphertext: ciphertext
+                    });
+
+                    // 4. Push payload to the new bucket ID
+                    const pushNewResponse = await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${newBucketKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: newPayload
+                    });
+
+                    if (!pushNewResponse.ok) {
+                        throw new Error(`Failed to provision new bucket. Server returned code ${pushNewResponse.status}`);
+                    }
+
+                    // 5. Clean / wipe the OLD bucket securely (zero out data so old PIN won't reveal anything)
+                    const tombstone = JSON.stringify({
+                        rotated: true,
+                        timestamp: Date.now()
+                    });
+                    await fetch(`https://kvdb.io/GCNEtvaXrhcbMkSWQCqr3A/${cloudKey}`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: tombstone
+                    }).catch(err => {
+                        console.warn("Could not wipe old slot, proceeding anyway:", err);
+                    });
+
+                    // 6. Apply new credentials locally
+                    cloudKey = newBucketKey;
+                    cloudEncKey = newEncKey;
+                    localStorage.setItem("thread_sync_key", newBucketKey);
+                    localStorage.setItem("thread_sync_enc_key", newEncKey);
+
+                    showToast("Password PIN successfully modified & E2EE Keys Rotated!");
+                    updateSyncIndicator(true);
+                } catch (err) {
+                    console.error("Key rotation failure:", err);
+                    showToast(`Rotation Failed: ${err.message}`, true);
+                } finally {
+                    rotateBtn.disabled = false;
+                    rotateBtn.innerHTML = '<span class="material-symbols-outlined" style="font-size: 16px;">key_carrier</span> Rotate Password PIN';
+                }
+            };
+        }
+
         // Disconnect logout cloud sync binds
         document.getElementById("btn-cloud-logout").onclick = () => {
             if (confirm("Disconnect database sync? No data will be lost offline.")) {
                 cloudEmail = null;
                 cloudKey = null;
+                cloudEncKey = null;
                 localStorage.removeItem("thread_sync_email");
                 localStorage.removeItem("thread_sync_key");
+                localStorage.removeItem("thread_sync_enc_key");
 
                 document.getElementById("cloud-logged-out").style.display = "block";
                 document.getElementById("cloud-logged-in").style.display = "none";
@@ -921,10 +1145,20 @@
 
         // If credentials are cached, boot into auto sync on load
         if (cloudEmail && cloudKey) {
-            document.getElementById("cloud-logged-out").style.display = "none";
-            document.getElementById("cloud-logged-in").style.display = "block";
-            document.getElementById("cloud-user-lbl").textContent = cloudEmail;
-            downloadDatabaseFromCloudAndMerge(); // Pull dynamic database state
+            if (!cloudEncKey) {
+                cloudEmail = null;
+                cloudKey = null;
+                cloudEncKey = null;
+                localStorage.removeItem("thread_sync_email");
+                localStorage.removeItem("thread_sync_key");
+                localStorage.removeItem("thread_sync_enc_key");
+                showToast("Security Update: End-to-End Encryption enabled! Please log in again to sync securely.", true);
+            } else {
+                document.getElementById("cloud-logged-out").style.display = "none";
+                document.getElementById("cloud-logged-in").style.display = "block";
+                document.getElementById("cloud-user-lbl").textContent = cloudEmail;
+                downloadDatabaseFromCloudAndMerge(); // Pull dynamic database state
+            }
         }
 
         // 3. Manual JSON files export triggers
