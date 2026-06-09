@@ -578,6 +578,60 @@ body.slate-light .sync-pill {
     color: var(--primary-color);
 }
 
+/* Web top search bar design */
+.web-search-bar {
+    display: flex;
+    align-items: center;
+    background-color: var(--dark-input-bg);
+    border: 1px solid var(--dark-border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    gap: 8px;
+    width: 280px;
+    max-width: 400px;
+    transition: var(--transition);
+}
+
+body.slate-light .web-search-bar {
+    background-color: var(--light-input-bg);
+    border-color: var(--light-border);
+}
+
+.web-search-bar:focus-within {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 2px rgba(26, 115, 232, 0.2);
+}
+
+.web-search-bar input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: inherit;
+    font-size: 13px;
+    width: 100%;
+}
+
+.web-search-bar .search-icon {
+    font-size: 18px;
+    color: var(--dark-text-secondary);
+    user-select: none;
+}
+
+body.slate-light .web-search-bar .search-icon {
+    color: var(--light-text-secondary);
+}
+
+.web-search-bar .search-clear-icon {
+    font-size: 18px;
+    color: var(--dark-text-secondary);
+    cursor: pointer;
+    user-select: none;
+}
+
+body.slate-light .web-search-bar .search-clear-icon {
+    color: var(--light-text-secondary);
+}
+
 .header-actions {
     display: flex;
     align-items: center;
